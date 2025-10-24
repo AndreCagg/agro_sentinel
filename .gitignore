@@ -4,4 +4,4 @@ venv
 *.csv
 learn.py
 *.pdf
-.*txt
+*.txt
