@@ -3,5 +3,5 @@ venv
 *.tif
 *.csv
 learn.py
-.pdf
+*.pdf
 .*txt
