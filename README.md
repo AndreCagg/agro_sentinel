@@ -74,6 +74,14 @@ i parametri da inserire sono
 
 
 
+Nella cartella ```asset``` è presente il file ```.kml``` della zona di interesse, il path del file è ancora hard-coded nel main.
+
+
+
+Nella cartella ```data``` sono presenti i file ```.csv``` e ```.tif``` scaricati
+
+
+
 \# License
 
 Questo software è realizzato sotto la ```MIT License```
