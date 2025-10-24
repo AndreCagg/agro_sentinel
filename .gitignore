@@ -1,0 +1,5 @@
+venv
+*.kml
+*.tif
+*.csv
+learn.py
