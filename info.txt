@@ -1,0 +1,84 @@
+poligono di interesse
+16.55134203208075,40.65069479788762,0 16.55130895867662,40.65051570324254,0 16.55131759304594,40.65050182536281,0 16.55139037790785,40.65049219684536,0 16.55153530449754,40.65047642404725,0 16.55165584500778,40.65046029376617,0 16.55183854928631,40.65044076473675,0 16.55196648846599,40.6504234914003,0 16.5520321257846,40.65041639487072,0 16.552124289442,40.65040484128176,0 16.55216506713278,40.65041375701621,0 16.55219084982743,40.65044235927015,0 16.55221018231699,40.65047000448092,0 16.55222647595681,40.65049655166569,0 16.55223589751255,40.6505360123933,0 16.55219375829887,40.65056938570272,0 16.55210653445642,40.6506220501251,0 16.55202360798093,40.65068993751713,0 16.55199059265278,40.65072345205773,0 16.55197432649516,40.65073178026937,0 16.55195286344408,40.65071020687895,0 16.5519049969672,40.6507164674015,0 16.55183300801888,40.65073510007754,0 16.55177808661579,40.65074840945234,0 16.55173757317861,40.65073939757999,0 16.55171972881888,40.6506962901702,0 16.55170709495844,40.65064390656914,0 16.55167957993522,40.6506406505931,0 16.55160476398427,40.6506518767395,0 16.55155211308399,40.65066872739276,0 16.55144654889661,40.65068698310333,0 16.55134203208075,40.65069479788762,0 
+
+librerie
+pip install sentinelhub geopandas shapely rasterio matplotlib
+
+client id
+sh-fb5d1f38-1268-4edf-8189-5205a88e76cf
+
+secret
+KV6K6YiIHmM9gnudWGKJbgKyrIokMjP1
+
+flow di setup:
+1. creazione delle credenziali oaut
+2. creazione delle istanze wms (utilizzo di simple sentinel2 L2A template)
+3. richiesta token
+4. il resto
+
+
+NDVI: quante vegetazione ce, >0.5 ce vegetazione, 0.2-0.4 presenta ma non densa o secca, <0 quasi nulla
+NDRE: stess vegetazione
+NDMI: idratazione vegatazione, >0.3 idratata, 0-0.3 stress
+GCI: clorofilla, 0-10, dice quanto attive e sane
+
+
+
+"ndvi_gen": ml_pd_dict[y][1]["NDVI"],
+        "ndvi_feb": ml_pd_dict[y][2]["NDVI"],
+        "ndvi_mar": ml_pd_dict[y][3]["NDVI"],
+        "ndvi_apr": ml_pd_dict[y][4]["NDVI"],
+        "ndvi_mag": ml_pd_dict[y][5]["NDVI"],
+        "ndvi_giu": ml_pd_dict[y][6]["NDVI"],
+        "ndvi_lug": ml_pd_dict[y][7]["NDVI"],
+        "ndvi_ago": ml_pd_dict[y][8]["NDVI"],
+        "ndvi_set": ml_pd_dict[y][9]["NDVI"],
+        "ndvi_ott": ml_pd_dict[y][10]["NDVI"],
+        "ndvi_nov": ml_pd_dict[y][11]["NDVI"],
+        "ndvi_dic": ml_pd_dict[y][12]["NDVI"],
+        
+        "ndmi_gen": ml_pd_dict[y][1]["NDMI"],
+        "ndmi_feb": ml_pd_dict[y][2]["NDMI"],
+        "ndmi_mar": ml_pd_dict[y][3]["NDMI"],
+        "ndmi_apr": ml_pd_dict[y][4]["NDMI"],
+        "ndmi_mag": ml_pd_dict[y][5]["NDMI"],
+        "ndmi_giu": ml_pd_dict[y][6]["NDMI"],
+        "ndmi_lug": ml_pd_dict[y][7]["NDMI"],
+        "ndmi_ago": ml_pd_dict[y][8]["NDMI"],
+        "ndmi_set": ml_pd_dict[y][9]["NDMI"],
+        "ndmi_ott": ml_pd_dict[y][10]["NDMI"],
+        "ndmi_nov": ml_pd_dict[y][11]["NDMI"],
+        "ndmi_dic": ml_pd_dict[y][12]["NDMI"],
+
+        "gci_gen": ml_pd_dict[y][1]["GCI"],
+        "gci_feb": ml_pd_dict[y][2]["GCI"],
+        "gci_mar": ml_pd_dict[y][3]["GCI"],
+        "gci_apr": ml_pd_dict[y][4]["GCI"],
+        "gci_mag": ml_pd_dict[y][5]["GCI"],
+        "gci_giu": ml_pd_dict[y][6]["GCI"],
+        "gci_lug": ml_pd_dict[y][7]["GCI"],
+        "gci_ago": ml_pd_dict[y][8]["GCI"],
+        "gci_set": ml_pd_dict[y][9]["GCI"],
+        "gci_ott": ml_pd_dict[y][10]["GCI"],
+        "gci_nov": ml_pd_dict[y][11]["GCI"],
+        "gci_dic": ml_pd_dict[y][12]["GCI"],
+
+
+
+Uso indiretto di Sentinel-2: proxy della pioggia
+
+Puoi dedurre gli effetti della pioggia sul suolo o sulla vegetazione, piuttosto che la pioggia stessa:
+
+a) Indici di umidità del suolo
+
+Calcola indici che correlano con l’umidità del suolo superficiale, che aumenta dopo un evento piovoso:
+
+Indice	Formula (approssimata)	Significato
+NDWI (Normalized Difference Water Index)	(B8 – B11) / (B8 + B11)	Umidità e contenuto d’acqua nel suolo e nella vegetazione
+NDMI (Normalized Difference Moisture Index)	(B8 – B11) / (B8 + B11)	Umidità nella vegetazione
+LSWI (Land Surface Water Index)	(B8 – B12) / (B8 + B12)	Presenza di acqua libera e saturazione del suolo
+
+Se osservi un aumento netto di NDWI/NDMI dopo una data, puoi inferire che si è verificata una precipitazione recente.
+
+PERONOSPORA: primavera, >10mm pioggia in 24-48h, >10gradi (meglio medie >13-14), lunghezza media 10cm, umidità 80% circa quando piove
+MOSCA: 
