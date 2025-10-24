@@ -1,6 +1,6 @@
 
 
-\# Agro Sentinel
+# Agro Sentinel
 
 
 
@@ -28,7 +28,7 @@ I dati utilizzati dal sistema sono ```.tif``` e ```.csv``` ma si punta ad utiliz
 
 
 
-\## Installation
+## Installation
 
 
 
@@ -36,13 +36,12 @@ Per l'installazione è sufficiente il download del repository e l'esecuzione del
 
 ```bash
 
-&nbsp; python ./main.py
+python ./main.py
 
 ```
 
-&nbsp;   
 
-\## Usage/Examples
+## Usage/Examples
 
 
 
@@ -82,7 +81,7 @@ Nella cartella ```data``` sono presenti i file ```.csv``` e ```.tif``` scaricati
 
 
 
-\# License
+# License
 
 Questo software è realizzato sotto la ```MIT License```
 

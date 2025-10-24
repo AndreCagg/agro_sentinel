@@ -228,8 +228,8 @@ if args.csv=="True": csv=True
 if args.show=="False": show=False
 
 
-CLIENT_ID=""
-CLIENT_SECRET=""
+CLIENT_ID="sh-fb5d1f38-1268-4edf-8189-5205a88e76cf"
+CLIENT_SECRET="KV6K6YiIHmM9gnudWGKJbgKyrIokMjP1"
 
 # Autenticazione
 auth=authenticate(CLIENT_ID, CLIENT_SECRET)
