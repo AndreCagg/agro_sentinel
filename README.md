@@ -16,7 +16,7 @@ Al momento è stato implementato solamente l'aspetto della raccolta e/o visualiz
 
 
 
-I dati utilizzati dal sistema sono ```.tif``` e ```.csv``` ma si punta ad utilizzare solo i ```.csv```.
+I dati utilizzati dal sistema sono file ```.csv```.
 
 
 
@@ -40,9 +40,13 @@ python ./main.py
 
 ```
 
+## Configuration
+
+
+Nel file ````conf/conf.ini``` vanno personalizzati i parametri di ```CLIENT_ID```, ```CLIENT_SECRET``` E ```MINUTE_RATE```. Il ```MINUTE_RATE``` esprime il numero massimo di richieste che Sentinel-Hub accetta in un minuto.
+
 
 ## Usage/Examples
-
 
 
 ```bash
@@ -55,29 +59,28 @@ python ./main.py
 
 i parametri da inserire sono
 
-
-
-```-csv: True | False```: per la creazione dei file ```.csv``` oltre che dei ```.tif```. I file ```.csv``` rappresentano l'immagine non georeferenziata (prossimamente verranno eliminati i file ```.tif``` aggiungendo la georeferenziazione nei ```.csv```)
-
-
-
 ```-start```: data di inizio periodo del quale si ha interesse in formato ```yyyy-mm-ddThh:mm:ssZ```
-
 
 
 ```-end```: come per ```start```
 
 
+```-area:```: path per il file kml contenente il poligono dell'area di interesse
+
 
 ```-show: True | False```: per la visualizzazione dell'immagine aggregata con le medie del periodo specificato
 
 
-
-Nella cartella ```asset``` è presente il file ```.kml``` della zona di interesse, il path del file è ancora hard-coded nel main.
-
+```-ow: True | False```: overwrite, se sono disponibili in locale già i dati desiderati e vanno sovrascritti o meno
 
 
-Nella cartella ```data``` sono presenti i file ```.csv``` e ```.tif``` scaricati
+Nella cartella ```asset``` è presente il file ```.kml``` della zona di interesse. AL momento è possibile utilizzare solo un poligono e non un multipoligono
+
+
+
+Nella cartella ```data``` sono presenti i file ```.csv``` scaricati che rappresentano i pixel dell'imamgine.
+
+Durante il download di un range di valori può capitare di ricevere un errore dal server (5xx) indicante il superamento del rate di richieste al minuto, questo perchè in una esecuzione precedente sono state già fatte altre richieste che il sistema, nell'esecuzione corrente, non può tracciare.
 
 
 

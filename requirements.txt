@@ -1,0 +1,11 @@
+geopandas==1.1.1
+matplotlib==3.10.7
+numpy==2.3.4
+oauthlib==3.3.1
+pandas==2.3.3
+pyproj==3.7.2
+python_dateutil==2.9.0.post0
+rasterio==1.4.3
+Requests==2.32.5
+requests_oauthlib==2.0.0
+seaborn==0.13.2

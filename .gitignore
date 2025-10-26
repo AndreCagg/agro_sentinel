@@ -5,3 +5,6 @@ venv
 learn.py
 *.pdf
 *.txt
+*.html
+old_data
+!requirements.txt

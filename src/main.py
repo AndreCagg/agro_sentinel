@@ -3,15 +3,21 @@ from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 import requests
 import rasterio
+from rasterio.transform import from_origin
 import pandas as pd
 import matplotlib.pyplot as plt
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import argparse
 import numpy as np
-import textwrap
 import time
 import os
+import csv
+from io import BytesIO
+import textwrap
+import configparser
+from pyproj import Transformer
+import random as rnd
 
 def authenticate(client_id, client_secret):
     client = BackendApplicationClient(client_id=client_id)
@@ -22,7 +28,6 @@ def authenticate(client_id, client_secret):
         include_client_id=True
     )
     if (token is not None) or (token!="") or (token["access_token"] is not None):
-        #token = token["access_token"]
         return {"token":token["access_token"], "expires_in":token["expires_in"]}
     else:
         return -1
@@ -34,7 +39,7 @@ def get_area(path):
     # utilizzo il primo poligono
     polygon = gdf.geometry[0]
 
-    # coordinate in formato [lon, lat]
+    # coordinate in formato [(lon, lat, alt)]
     polygon_coords = list(polygon.exterior.coords)
     return polygon_coords
 
@@ -54,7 +59,7 @@ def make_request(token, width, height, start, end, polygon_coords, maxCloudCover
             }]
         },
         "output": {
-            "width": width, #10m
+            "width": width,
             "height": height,
             "responses": [{"identifier":"default","format":{"type":"image/tiff"}}]
         },
@@ -93,71 +98,53 @@ def make_request(token, width, height, start, end, polygon_coords, maxCloudCover
     return {"url": url, "headers": headers, "data": data}
 
 
-def process_req(req, start, end, csv): # download immagine e salvataggio csv
-    filename_tif=f"../data/{start.replace(':','-')}_{end.replace(':','-')}.tif"
-    # scarica TIFF
-    response = requests.post(req["url"], headers=req["headers"], json=req["data"])
-    if response.status_code == 200 and response.headers.get("Content-Type", "").startswith("image/"):
-        with open(filename_tif, "wb") as f:
-            f.write(response.content)
-
-    else:
-        print("ERRORE")
-        print(response.text)
-
+def process_req(req, start, end, filename): # salvataggio csv dei dati grezzi
     # lettura del tif
     empty=False
-    if response.status_code==200:
-        with rasterio.open(filename_tif) as src:
+    xs=[]
+    ys=[]
+    response = requests.post(req["url"], headers=req["headers"], json=req["data"])
+    if response.status_code == 200 and response.headers.get("Content-Type", "").startswith("image/"):
+        bin=BytesIO(response.content)
+        with rasterio.open(bin) as src:
             arr = src.read()
             empty=(np.all(np.isnan(arr) | (arr == 0)))
-            """if not empty:
-                print(arr)"""
+
+            if not empty:
+                transform = src.transform
+
+                # Calcola le coordinate X,Y reali
+                rows, cols = np.meshgrid(np.arange(src.height), np.arange(src.width), indexing='ij')
+                xs, ys = rasterio.transform.xy(transform, rows, cols)
+                xs = np.array(xs)
+                ys = np.array(ys)
+
+                # conversione pixel in df
+                df = pd.DataFrame({
+                    "X": xs.flatten(),
+                    "Y": ys.flatten(),
+                    "NDVI": arr[0].flatten(),
+                    "NDRE": arr[1].flatten(),
+                    "NDMI": arr[2].flatten(),
+                    "GCI":  arr[3].flatten(),
+                    "B08":  arr[4].flatten(),
+                    "B04":  arr[5].flatten(),
+                    "B05":  arr[6].flatten(),
+                })
+
+                df.to_csv(filename, index=False)
     else:
-        print("ERRORE DI CONNESSIONE")
+        print("ERRORE DI COMUNICAZIONE")
+        print(response.text)
 
-    #valid_mask = np.isfinite(arr).all(axis=0) & (arr[4] != 0) & (arr[5] != 0) & (arr[6] != 0) # se l'immagine è vuota
-    #if np.any(valid_mask):
-    #if empty: print("VUOTAAAAA")
-    if not empty:
-        if csv:
-            # conversione pixel in df
-            df = pd.DataFrame({
-                "NDVI": arr[0].flatten(),
-                "NDRE": arr[1].flatten(),
-                "NDMI": arr[2].flatten(),
-                "GCI":  arr[3].flatten(),
-                "B08":  arr[4].flatten(),
-                "B04":  arr[5].flatten(),
-                "B05":  arr[6].flatten(),
-            })
-
-            #df=df[(df["B08"]!=0) & (df["B04"]!=0) & (df["B05"]!=0)]
-            df = df[~((df["B08"] == 0) & (df["B04"] == 0) & (df["B05"] == 0))] # elimina righe tutte 0
-
-            filename_csv=f"../data/{start.replace(':','-')}_{end.replace(':','-')}_pixels.csv"
-            
-
-            df.to_csv(filename_csv, index=False)
-
-            #print("CSV salvato con", len(df), "pixel.")
-            """
-            if show:
-                view_image(filename_tif)"""
-    else:
-        print("NESSUNA IMMAGINE DISPONIBILE")
-        os.remove(filename_tif)
-        filename_tif=None
-        filename_csv=None
-
-    return filename_tif
+    return filename
 
 def view_image(path):
     band_info = {
-        "NDVI": "Indice di vegetazione (densità delle piante). Valori buoni: 0.5-0.8 per vegetazione sana, <0 indica acqua, ~0 terreno nudo.",
-        "NDRE": "Indice di vegetazione Red Edge (stress della vegetazione). Valori buoni: 0.3-0.6 indicano fogliame sano, valori bassi indicano stress.",
-        "NDMI": "Indice di umidità del suolo e vegetazione. Valori buoni: -0.2 - 0.4 (poco stress idrico), <0.8 ok. indica vegetazione umida, valori negativi terreno secco o stress idrico.",
-        "GCI": "Contenuto di clorofilla nella vegetazione. Valori buoni: 2-4 indicano buona clorofilla, valori bassi stress o foglie giovani/ingiallite.",
+        "NDVI": "Densità  e vigoria delle piante. Valori buoni: 0.3-0.8 per vegetazione sana, <0 indica acqua, ~0 terreno nudo.",
+        "NDRE": "Indice di clorofilla (vegetazione sana o meno). Valori buoni: <0.3 indicano fogliame sufficiente, valori bassi indicano stress.",
+        "NDMI": "Indice di umidità del suolo e densità vegetazione. Valori buoni: -0.4 - 0.4 (stress idrico), <0.8 ok. indica vegetazione umida, valori negativi terreno secco o stress idrico.",
+        "GCI": "Clorofilla superficiale. Valori buoni: >2 indicano buona clorofilla, valori bassi stress o foglie giovani/ingiallite.",
         #"B08": "Banda NIR (Near Infrared, riflettanza del fogliame). Valori buoni: 0.3-0.7 per vegetazione sana, vicino a 0 per acqua o terreno nudo.",
         #"B04": "Banda Red (rosso, riflettanza foglie). Valori buoni: 0.05-0.2 vegetazione sana, più alto indica stress o terreno scoperto.",
         #"B05": "Banda Red Edge 1 (transizione rosso-NIR, stress vegetativo). Valori buoni: 0.05-0.25 per vegetazione sana, valori bassi stress o scarsità di fogliame."
@@ -194,9 +181,6 @@ def view_image(path):
         ax_text = fig.add_subplot(gs[:, 2])
         ax_text.axis('off')
 
-        #wrapped_interpretazioni = textwrap.fill(interpretazioni, width=40)
-        #fig.text(0.05, 0.5, interpretazioni, fontsize=9, va='center', ha='left', multialignment='left')
-        #ax_text.text(0, 1, wrapped_interpretazioni, fontsize=10, va='top', ha='left', family='monospace')
         wrapped = textwrap.fill(interpretazioni, width=50)
         ax_text.text(0, 1, wrapped, fontsize=10, va='top', ha='left', multialignment='left')
 
@@ -206,106 +190,186 @@ def view_image(path):
         plt.show()
 
 
+def mosaic(fn):
+    bande = ["NDVI", "NDRE", "NDMI", "GCI"]
+    profile = {
+        "driver": "GTiff",
+        "height": zoom_height,
+        "width": zoom_width,
+        "count": len(bande),
+        "dtype": "float32",
+        "crs": "+proj=latlong",  # sistema di riferimento spaziale
+        "nodata": np.nan
+    }
 
+    for b in range(len(bande)):
+        raster_stack={} # accumulo dati di ogni banda
+        minX=maxY=pixel_size_x=pixel_size_y=None
+        for img in images:
+            with open(img) as raw:
+                reader=csv.DictReader(raw)
+
+                for row in reader:
+                    if (row["X"], row["Y"]) not in raster_stack:
+                        if row[bande[b]]=="":
+                            row[bande[b]]=np.nan
+
+                        raster_stack[(row["Y"], row["X"])]=[float(row[bande[b]])]
+                    else:
+                        raster_stack[(row["Y"], row["X"])].append(float(row[bande[b]]))
+
+            if minX==None:
+                df=pd.read_csv(img)
+                minX=df["X"].min()
+                maxY=df["Y"].max()
+                pixel_size_x=df["X"].diff().min()
+                pixel_size_y=df["Y"].diff().abs().min()
+                transform = from_origin(minX, maxY, pixel_size_x, pixel_size_y)
+                profile["transform"] = transform
+
+        for px in raster_stack:
+            raster_stack[px]=np.average(raster_stack[px]) # media di un px per quella banda
+
+        sorted_coords = sorted(raster_stack.keys(), key=lambda k: (-float(k[0]), float(k[1])))
+        data = np.array([raster_stack[coord] for coord in sorted_coords]).reshape((int(zoom_height), int(zoom_width)))
+
+
+        mode="r+"
+        if b==0: mode="w"
+        
+        with rasterio.open(fn, mode, **profile) as img:
+            img.write(data,b+1)
+
+
+        raster_stack={}
+
+def get_size(polygon_coords):
+    # Calcolo width, height
+    lon=[float(c[0]) for c in polygon_coords]
+    lat=[float(c[1]) for c in polygon_coords]
+
+    # calcolo del sistema di destinazione di coordinate
+    mean_lon=np.average(lon)
+    mean_lat=np.average(lat)
+
+    zone=int((mean_lon+180)/6)+1 # identifico in quale frazione di zona mi trovo
+    epsg_dest=32600+zone if mean_lat>=0 else 32700+zone
+
+    # trasformatore da gradi (GPS - EPSG:4326) a metri
+    transformer=Transformer.from_crs("EPSG:4326", epsg_dest, always_xy=True)
+    xs,ys=transformer.transform(lon,lat) # trasformazione da gradi a metri
+
+    zoom_width=max(xs)-min(xs)
+    zoom_height=max(ys)-min(ys) 
+
+    return {"zoom_width":zoom_width, "zoom_height":zoom_height}
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-csv")
 parser.add_argument("-start")
 parser.add_argument("-end")
+parser.add_argument("-area")
 parser.add_argument("-show")
+parser.add_argument("-ow")
 
-#start="2018-01-01T00:00:00Z"
-#end="2025-10-22T23:59:59Z"
 
 args=parser.parse_args()
 start=args.start
 end=args.end
+filename_area=args.area
 
 
-csv=False
 show=True
-if args.csv=="True": csv=True
+ow=True
 if args.show=="False": show=False
+if args.ow=="False": ow=False
 
 
-CLIENT_ID=""
-CLIENT_SECRET=""
+config=configparser.ConfigParser()
+config.read("../conf/conf.ini")
+
+CLIENT_ID=config["AUTH"]["CLIENT_ID"]
+CLIENT_SECRET=config["AUTH"]["CLIENT_SECRET"]
+
+REQ_RATE=int(config["REQ"]["MINUTE_RATE"])
+
 
 # Autenticazione
 auth=authenticate(CLIENT_ID, CLIENT_SECRET)
 token=auth["token"]
 expires_in=auth["expires_in"]-(auth["expires_in"]*0.5)
 
-polygon_coords=get_area("../asset/uliveto.kml")
+polygon_coords=get_area(filename_area)
 
-#start="2018-01-01T00:00:00Z"
-#end="2025-10-22T23:59:59Z"
+sizes=get_size(polygon_coords)
+
+zoom_width=sizes["zoom_width"]
+zoom_height=sizes["zoom_height"]
+
+
 start_date = datetime.fromisoformat(start.replace("Z", ""))
 end_date   = datetime.fromisoformat(end.replace("Z", ""))
 
-#if batch:
 images=[]
 current = start_date
-count=0
+req_count=0
 
+start_batch_time=time.time()
 exp=time.time()+(auth["expires_in"]*0.5)
 while current <= end_date:
-    if time.time()>=exp:
-        auth=authenticate(CLIENT_ID, CLIENT_SECRET)
-        token=auth["token"]
-        exp=time.time()+(auth["expires_in"]*0.5)
-
     day_start = current.isoformat() + "Z"
     day_end = (current + relativedelta(days=1)-relativedelta(seconds=1)).isoformat() + "Z"
-    print(f"Intervallo {day_start} - {day_end}")
 
-    req = make_request(
-        token,
-        width=38.8198125985208,
-        height=60.413087653464956,
-        start=day_start,
-        end=day_end,
-        polygon_coords=polygon_coords,
-        maxCloudCoverage=31
-    )
+    now=time.time()
+    fn=f"../data/{os.path.basename(filename_area).split('.')[0]}_{start.replace(':','-')}_{end.replace(':','-')}_pixels.csv" # pattern filename csv
 
-    fn=process_req(req, day_start, day_end, csv)
+    if ow or (not os.path.exists(fn)):
 
-    current += relativedelta(days=1)
-    count+=1
-    if show:
+        # controllo che non supero il rate di req/min
+        if (now-start_batch_time)>=60:
+            start_batch_time=now
+            req_count=0
+
+        if (req_count==(REQ_RATE-1)):
+            print("IN ATTESA PER EVITARE SUPERAMENTO RATE RICHIESTE/MINUTO")
+            time.sleep(now-start_batch_time+1)
+            start_batch_time=now
+            req_count=0
+
+        # verifico che non sia scaduto il token
+        if now>=exp:
+            auth=authenticate(CLIENT_ID, CLIENT_SECRET)
+            token=auth["token"]
+            exp=now+(auth["expires_in"]*0.5)
+
+        req = make_request(
+            token,
+            width=zoom_width,
+            height=zoom_height,
+            start=day_start,
+            end=day_end,
+            polygon_coords=polygon_coords,
+            maxCloudCoverage=31
+        )
+
+        fn=process_req(req, day_start, day_end, fn)
+
         if fn is not None:
+            print(f"Intervallo {day_start} - {day_end}")
+        else:
+            print(f"Intervallo {day_start} - {day_end}: NESSUNA IMMAGINE DISPONIBILE")
+
+        req_count+=1
+
+    if show:
+        if os.path.exists(fn):
             images.append(fn)
 
-    if count==20:
-        time.sleep(20)
-        count=0
+    current += relativedelta(days=1)
+
 
 # mosaicking delle immagini
 if show:
-    bande = ["NDVI", "NDRE", "NDMI", "GCI"]
-    mosaics=[]
-    for b in range(len(bande)):
-        raster_stack=[] # accumulo dati di ogni banda
-        for img in images:
-            with rasterio.open(img) as r:
-                raster_stack.append(r.read(b+1)) # prendo la corrispondente banda, l'ordine è tassativamente questo (vedi nella richiesta)
-            
-        raster_stack = np.stack(raster_stack, axis=0) # creo array 3D (n_immagini, altezza, larghezza)
-        mean_band = np.mean(raster_stack, axis=0) # fa la media
-
-        mean_band = mean_band.astype(raster_stack[0].dtype) # la media della banda
-        mosaics.append(mean_band) # si crea il mosaico
-
-    # profilo raster
-    with rasterio.open(images[0]) as src0:
-        profile = src0.profile
-        profile.update(count=len(bande))  # aggiorna numero di bande per l'output
-
-    # realizzazione del mosaico multi-banda
-    output_path = "../data/mosaic_output.tif"
-    with rasterio.open(output_path, "w", **profile) as dst:
-        for idx, band in enumerate(mosaics, start=1):
-            dst.write(band, idx)
-
-    view_image(output_path)
+    mosaic_filename=f"../data/out{rnd.random()}.tif"
+    mosaic(mosaic_filename)
+    view_image(mosaic_filename)
+    os.remove(mosaic_filename)
