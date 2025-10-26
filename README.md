@@ -43,7 +43,7 @@ python ./main.py
 ## Configuration
 
 
-Nel file ````conf/conf.ini``` vanno personalizzati i parametri di ```CLIENT_ID```, ```CLIENT_SECRET``` E ```MINUTE_RATE```. Il ```MINUTE_RATE``` esprime il numero massimo di richieste che Sentinel-Hub accetta in un minuto.
+Nel file ```conf/conf.ini``` vanno personalizzati i parametri di ```CLIENT_ID```, ```CLIENT_SECRET``` E ```MINUTE_RATE```. Il ```MINUTE_RATE``` esprime il numero massimo di richieste che Sentinel-Hub accetta in un minuto.
 
 
 ## Usage/Examples
