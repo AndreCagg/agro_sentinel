@@ -82,6 +82,23 @@ Nella cartella ```data``` sono presenti i file ```.csv``` scaricati che rapprese
 
 Durante il download di un range di valori può capitare di ricevere un errore dal server (5xx) indicante il superamento del rate di richieste al minuto, questo perchè in una esecuzione precedente sono state già fatte altre richieste che il sistema, nell'esecuzione corrente, non può tracciare.
 
+## Modules
+### resume_img
+Analisi generica della vegetazione che si propone di controllare a sommi capi se la vegetazione è colpita da una malattia e quanto è effettivamente vigorosa.
+
+I parametri sono:
+```-start```: data di inizio periodo del quale si ha interesse in formato ```yyyy-mm-ddThh:mm:ssZ```
+
+
+```-end```: come per ```start```
+
+
+```-area:```: path per il file kml contenente il poligono dell'area di interesse
+
+La valutazione della produttività è data dal rapporto delle metriche GCI/NDRE. Il GCI misura la quantità totale della clorofilla presente, invece, il NDRE misura, in maniera normalizzata, quanta clorofilla è attiva biochimicamente. 
+
+E' possibile che ci sia molta clorofilla misurata da GCI ma poco NDRE, significa che la vegetazione non sta ricevendo più nutrimento e sta morendo; la clorofilla (e quindi il GCI) persiste perché rimangono "fermi" nella vegetazione. Il fatto che il valore sia basso (<6) è un campanello d'allarme.
+
 
 
 # License

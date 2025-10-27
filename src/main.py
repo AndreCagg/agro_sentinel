@@ -142,7 +142,7 @@ def process_req(req, start, end, filename): # salvataggio csv dei dati grezzi
 def view_image(path):
     band_info = {
         "NDVI": "Densità  e vigoria delle piante. Valori buoni: 0.3-0.8 per vegetazione sana, <0 indica acqua, ~0 terreno nudo.",
-        "NDRE": "Indice di clorofilla (vegetazione sana o meno). Valori buoni: <0.3 indicano fogliame sufficiente, valori bassi indicano stress.",
+        "NDRE": "Indice di clorofilla (vegetazione sana o meno). Valori buoni: <0.4 stress, >0.6 sano e maturazione frutti.",
         "NDMI": "Indice di umidità del suolo e densità vegetazione. Valori buoni: -0.4 - 0.4 (stress idrico), <0.8 ok. indica vegetazione umida, valori negativi terreno secco o stress idrico.",
         "GCI": "Clorofilla superficiale. Valori buoni: >2 indicano buona clorofilla, valori bassi stress o foglie giovani/ingiallite.",
         #"B08": "Banda NIR (Near Infrared, riflettanza del fogliame). Valori buoni: 0.3-0.7 per vegetazione sana, vicino a 0 per acqua o terreno nudo.",
@@ -173,7 +173,7 @@ def view_image(path):
             # Wrapping più stretto per i titoli e font più piccolo
             wrapped_desc = textwrap.fill(description, width=30)
 
-            im = ax.imshow(arr[i], cmap='viridis')
+            im = ax.imshow(arr[i], cmap='viridis', interpolation="bicubic")
             ax.set_title(f"{band_name}:\n{wrapped_desc}", fontsize=7, loc='left')
             ax.axis('off')
             fig.colorbar(im, ax=ax, fraction=0.05, pad=0.02, orientation='horizontal')
@@ -190,7 +190,7 @@ def view_image(path):
         plt.show()
 
 
-def mosaic(fn):
+def mosaic(fn, images):
     bande = ["NDVI", "NDRE", "NDMI", "GCI"]
     profile = {
         "driver": "GTiff",
@@ -320,7 +320,7 @@ while current <= end_date:
     day_end = (current + relativedelta(days=1)-relativedelta(seconds=1)).isoformat() + "Z"
 
     now=time.time()
-    fn=f"../data/{os.path.basename(filename_area).split('.')[0]}_{start.replace(':','-')}_{end.replace(':','-')}_pixels.csv" # pattern filename csv
+    fn=f"../data/{os.path.basename(filename_area).split('.')[0]}_{day_start.replace(':','-')}_{day_end.replace(':','-')}_pixels.csv" # pattern filename csv
 
     if ow or (not os.path.exists(fn)):
 
@@ -352,6 +352,7 @@ while current <= end_date:
         )
 
         fn=process_req(req, day_start, day_end, fn)
+        if not os.path.exists(fn): fn=None
 
         if fn is not None:
             print(f"Intervallo {day_start} - {day_end}")
@@ -361,7 +362,7 @@ while current <= end_date:
         req_count+=1
 
     if show:
-        if os.path.exists(fn):
+        if (fn is not None) and os.path.exists(fn):
             images.append(fn)
 
     current += relativedelta(days=1)
@@ -369,7 +370,8 @@ while current <= end_date:
 
 # mosaicking delle immagini
 if show:
-    mosaic_filename=f"../data/out{rnd.random()}.tif"
-    mosaic(mosaic_filename)
-    view_image(mosaic_filename)
-    os.remove(mosaic_filename)
+    if images:
+        mosaic_filename=f"../data/out{rnd.random()}.tif"
+        mosaic(mosaic_filename, images)
+        view_image(mosaic_filename)
+        os.remove(mosaic_filename)
